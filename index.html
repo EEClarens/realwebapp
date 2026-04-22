@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Irregular Solid Volume Calculator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Segoe UI, Arial, sans-serif; background: #f0f4ff; padding: 16px; }
+    .container { max-width: 600px; margin: auto; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    h1 { font-size: 18px; color: #1a3a6e; margin-bottom: 4px; }
+    .subtitle { font-size: 12px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+    label { font-size: 13px; color: #444; display: block; margin-top: 12px; margin-bottom: 4px; }
+    select, input[type=number] {
+      width: 100%; padding: 10px; border: 1px solid #ccc;
+      border-radius: 8px; font-size: 16px; /* 16px prevents zoom on iOS */
+      box-sizing: border-box; background: #fff;
+    }
+    .formula { font-family: monospace; font-size: 12px; background: #e8f0fb; color: #1a4fa0; padding: 8px 12px; border-radius: 6px; margin-top: 10px; word-break: break-all; }
+    .desc { font-size: 13px; color: #555; background: #f9f9f9; padding: 10px; border-radius: 6px; margin-top: 8px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    @media (max-width: 400px) { .grid { grid-template-columns: 1fr; } }
+    button {
+      width: 100%; margin-top: 16px; padding: 14px;
+      background: #1a6fdb; color: #fff; border: none;
+      border-radius: 8px; font-size: 16px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    button:active { background: #155bbf; }
+    .result { margin-top: 16px; background: #f4f7ff; border-radius: 8px; padding: 16px; display: none; }
+    .vol { font-size: 36px; font-weight: 700; color: #1a3a6e; word-break: break-all; }
+    .unit { font-size: 12px; color: #888; margin-top: 2px; }
+    .steps { margin-top: 12px; font-family: monospace; font-size: 12px; color: #444; line-height: 2; border-top: 1px solid #dde4f5; padding-top: 10px; word-break: break-word; }
+    canvas { width: 100%; margin-top: 16px; border-radius: 8px; background: #f4f7ff; display: block; }
+    .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin: 6px 4px 0 0; }
+    .b1 { background: #EEEDFE; color: #3C3489; }
+    .b2 { background: #E1F5EE; color: #0F6E56; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📐 Irregular Solid Volume Calculator</h1>
+  <p class="subtitle">Disk/Washer Method + Composite Simpson's Rule</p>
+
+  <label>Select Solid Form</label>
+  <select id="solid" onchange="updateSolid()">
+    <option value="0">1. Sinusoidal Paraboloid Shell</option>
+    <option value="1">2. Damped-Wave Frustum</option>
+    <option value="2">3. Exponential Ogive Dome</option>
+    <option value="3">4. Hyperbolic Annular Solid</option>
+    <option value="4">5. Polynomial Biconcave Spindle</option>
+  </select>
+  <div class="desc" id="desc"></div>
+  <div class="formula" id="formula"></div>
+  <div id="tags"></div>
+
+  <div class="grid">
+    <div><label>Length L (cm)</label><input type="number" id="L" value="10" step="any" inputmode="decimal"></div>
+    <div><label>Max Radius R (cm)</label><input type="number" id="R" value="5" step="any" inputmode="decimal"></div>
+    <div><label>Amplitude / Factor A</label><input type="number" id="A" value="1" step="any" inputmode="decimal"></div>
+    <div><label>Shape Param n/m/B</label><input type="number" id="N" value="3" step="any" inputmode="decimal"></div>
+  </div>
+
+  <button onclick="calculate()">Calculate Volume</button>
+
+  <div class="result" id="result">
+    <div style="font-size:12px;color:#888;margin-bottom:4px">Computed Volume</div>
+    <div class="vol" id="volVal"></div>
+    <div class="unit">cubic centimetres (cm³)</div>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <canvas id="canvas" height="160"></canvas>
+</div>
+
+<script>
+const DATA = [
+  { desc: "A parabolic solid modulated by a sine wave, producing a ribbed shell-like surface.",
+    formula: "r(x) = R*(1-(x/L)^2) + A*sin(N*PI*x/L)",
+    tags: ["Ribbed","Shell","Organic"],
+    r: (x,L,R,A,N) => R*(1-(x/L)**2) + A*Math.sin(N*Math.PI*x/L) },
+  { desc: "A cone-like frustum whose radius decays with an oscillating cosine, like a vibrating cone settling to rest.",
+    formula: "r(x) = R + (A-R)*(x/L) + N*cos(3x)*e^(-0.3x)",
+    tags: ["Acoustic","Frustum","Decaying"],
+    r: (x,L,R,A,N) => Math.max(0, R+(A-R)*(x/L) + N*Math.cos(3*x)*Math.exp(-0.3*x)) },
+  { desc: "A dome whose profile follows an exponential ogive curve — wide base tapering to a rounded apex.",
+    formula: "r(x) = R*sqrt(1-(x/L)^2)*e^(-A*x/L)",
+    tags: ["Dome","Ogive","Ballistic"],
+    r: (x,L,R,A,N) => R*Math.sqrt(Math.max(0,1-(x/L)**2))*Math.exp(-A*x/L) },
+  { desc: "A solid bounded by a hyperbolic curve — narrower at the waist and flared at both ends.",
+    formula: "r(x) = sqrt(R^2 + (x-L/2)^2 / A^2)",
+    tags: ["Hyperboloid","Ring","Flared"],
+    r: (x,L,R,A,N) => Math.sqrt(R*R + (x-L/2)**2/(A*A)) },
+  { desc: "A lens-shaped solid whose radius follows a degree-4 polynomial — concave at ends, convex in the middle.",
+    formula: "r(x) = R * [4*(x/L)*(1-x/L)]^N",
+    tags: ["Biconcave","Lens","Cell-like"],
+    r: (x,L,R,A,N) => { const b=4*(x/L)*(1-x/L); return b>0 ? R*Math.pow(b,N) : 0; } }
+];
+
+function simpson(rfn,L,R,A,N,n=1000){
+  const h=L/n; let sum=0;
+  for(let i=0;i<=n;i++){
+    const x=i*h, r=rfn(x,L,R,A,N), fx=Math.PI*r*r;
+    const c=(i===0||i===n)?1:(i%2===1?4:2);
+    sum+=c*fx;
+  }
+  return sum*h/3;
+}
+
+function getVals(){
+  return {
+    i: +document.getElementById('solid').value,
+    L: +document.getElementById('L').value || 10,
+    R: +document.getElementById('R').value || 5,
+    A: +document.getElementById('A').value || 1,
+    N: +document.getElementById('N').value || 3
+  };
+}
+
+function updateSolid(){
+  const {i} = getVals();
+  const d = DATA[i];
+  document.getElementById('desc').textContent = d.desc;
+  document.getElementById('formula').textContent = d.formula;
+  document.getElementById('tags').innerHTML = d.tags.map((t,j)=>`<span class="badge ${j%2?'b2':'b1'}">${t}</span>`).join('');
+  document.getElementById('result').style.display='none';
+  drawCanvas();
+}
+
+function calculate(){
+  const {i,L,R,A,N} = getVals();
+  if(L<=0||R<=0){ alert('Length and Radius must be greater than 0.'); return; }
+  const V = simpson(DATA[i].r, L, R, A, N);
+  document.getElementById('volVal').textContent = V.toFixed(2);
+  document.getElementById('steps').innerHTML =
+    `Method: Disk/Washer → V = π∫[r(x)]²dx<br>` +
+    `Rule: Composite Simpson's Rule<br>` +
+    `Slices: n=1000, Δx=${(L/1000).toFixed(5)} cm<br>` +
+    `Range: x=0 to x=${L} cm<br>` +
+    `──────────────────────<br>` +
+    `VOLUME = <b>${V.toFixed(4)} cm³</b>`;
+  document.getElementById('result').style.display='block';
+  drawCanvas();
+  // scroll to result on mobile
+  document.getElementById('result').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function drawCanvas(){
+  const cv=document.getElementById('canvas');
+  const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.offsetWidth||340, H=160;
+  cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const {i,L,R,A,N}=getVals();
+  const pts=200, pad=24, midY=H/2;
+  const xs=[],rs=[];
+  for(let k=0;k<=pts;k++){const x=k*L/pts; xs.push(x); rs.push(Math.max(0,DATA[i].r(x,L,R,A,N)));}
+  const maxR=Math.max(...rs)||1;
+  const sx=(W-2*pad)/L, sy=(H/2-pad)/maxR;
+  ctx.fillStyle='rgba(26,111,219,0.10)';
+  ctx.beginPath();
+  xs.forEach((x,k)=>{const px=pad+x*sx,py=midY-rs[k]*sy; k?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+  for(let k=pts;k>=0;k--) ctx.lineTo(pad+xs[k]*sx, midY+rs[k]*sy);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#1a6fdb'; ctx.lineWidth=2;
+  ['top','bot'].forEach(side=>{
+    ctx.beginPath();
+    xs.forEach((x,k)=>{const px=pad+x*sx,py=midY+(side==='top'?-1:1)*rs[k]*sy; k?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+    ctx.stroke();
+  });
+  ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
+  ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(pad,midY); ctx.lineTo(W-pad,midY); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#aaa'; ctx.font='10px Arial';
+  ctx.fillText('x=0',pad,H-4); ctx.fillText('x='+L,W-pad-30,H-4); ctx.fillText('r(x)',2,midY-4);
+}
+
+updateSolid();
+window.addEventListener('resize', drawCanvas);
+</script>
+</body>
+</html>
