@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Irregular Solid Volume Calculator — Visual Basic .NET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050c1f;
+  --surface:#0b1432;
+  --panel:#0f1a3e;
+  --border:#1e2d6b;
+  --accent:#3b82f6;
+  --accent2:#60a5fa;
+  --gold:#f59e0b;
+  --gold2:#fbbf24;
+  --text:#c8d6f8;
+  --text2:#8899cc;
+  --glow:rgba(59,130,246,0.25);
+}
+body{
+  font-family:'Space Grotesk',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* Starfield */
+#stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+
+/* Main layout */
+.page{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+  min-height:100vh;
+}
+
+/* Left panel — controls */
+.left{
+  padding:48px 40px;
+  border-right:1px solid var(--border);
+  background:linear-gradient(160deg,#07112a 0%,#050c1f 100%);
+  display:flex;flex-direction:column;gap:20px;
+}
+
+/* Right panel — 3D viewer */
+.right{
+  display:flex;flex-direction:column;
+  background:#030810;
+  position:relative;overflow:hidden;
+}
+
+/* Header */
+.header{margin-bottom:8px}
+.badge{
+  display:inline-block;
+  font-size:11px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--accent2);
+  background:rgba(59,130,246,0.12);
+  border:1px solid rgba(59,130,246,0.3);
+  padding:4px 12px;border-radius:20px;
+  margin-bottom:14px;
+}
+h1{
+  font-size:26px;font-weight:700;
+  color:#e8f0ff;
+  line-height:1.25;
+  letter-spacing:-.3px;
+}
+h1 span{color:var(--gold)}
+.subtitle{
+  font-size:13px;color:var(--text2);
+  margin-top:6px;line-height:1.6;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:.03em;
+}
+
+/* Selector */
+.field-label{
+  font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent2);
+  margin-bottom:6px;
+}
+select,input[type=number]{
+  width:100%;
+  background:var(--panel);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'Space Grotesk',sans-serif;
+  font-size:14px;
+  padding:10px 14px;
+  border-radius:8px;
+  outline:none;
+  transition:border-color .2s,box-shadow .2s;
+  -webkit-appearance:none;
+}
+select:focus,input[type=number]:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--glow);
+}
+select option{background:#0b1432}
+
+/* Solid info card */
+.solid-info{
+  background:rgba(59,130,246,0.06);
+  border:1px solid rgba(59,130,246,0.2);
+  border-radius:10px;
+  padding:14px 16px;
+}
+.solid-formula{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--gold);
+  background:rgba(245,158,11,0.08);
+  border:1px solid rgba(245,158,11,0.2);
+  padding:8px 12px;border-radius:6px;
+  margin-top:8px;word-break:break-all;
+}
+.solid-desc{font-size:13px;color:var(--text2);line-height:1.6}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tag{
+  font-size:10px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:3px 10px;border-radius:20px;
+}
+.tag:nth-child(1){background:rgba(99,102,241,.18);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
+.tag:nth-child(2){background:rgba(20,184,166,.15);color:#5eead4;border:1px solid rgba(20,184,166,.25)}
+.tag:nth-child(3){background:rgba(245,158,11,.13);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+
+/* Parameter grid */
+.param-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.param-block{}
+
+/* Calc button */
+.btn-calc{
+  width:100%;
+  padding:14px;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  color:#fff;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:15px;font-weight:700;
+  letter-spacing:.04em;
+  border:none;border-radius:10px;
+  cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 24px rgba(37,99,235,.4);
+}
+.btn-calc::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);
+}
+.btn-calc:hover{transform:translateY(-1px);box-shadow:0 6px 32px rgba(37,99,235,.55)}
+.btn-calc:active{transform:translateY(0)}
+
+/* Result card */
+.result-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:18px 20px;
+  display:none;
+  position:relative;overflow:hidden;
+}
+.result-card::before{
+  content:'';position:absolute;
+  top:-40px;right:-40px;
+  width:120px;height:120px;
+  background:radial-gradient(circle,rgba(245,158,11,.15),transparent 70%);
+  pointer-events:none;
+}
+.vol-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text2)}
+.vol-value{
+  font-size:36px;font-weight:700;
+  color:var(--gold);
+  letter-spacing:-.5px;
+  line-height:1.1;
+  margin:4px 0 2px;
+}
+.vol-unit{font-size:12px;color:var(--text2)}
+.steps{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--text2);
+  margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--border);
+  line-height:2;
+}
+
+/* Right side — 3D viewer */
+.viewer-header{
+  padding:24px 28px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.viewer-title{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text2)}
+.viewer-hint{font-size:11px;color:rgba(136,153,204,.5)}
+
+#cv3d{
+  display:block;
+  width:100%;
+  flex:1;
+  cursor:grab;
+}
+#cv3d:active{cursor:grabbing}
+
+.solid-name-overlay{
+  position:absolute;bottom:24px;left:28px;
+  font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent2);
+  opacity:.6;
+}
+.vol-overlay{
+  position:absolute;bottom:24px;right:28px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;color:var(--gold2);
+  opacity:.85;
+}
+
+/* Irregular shape accent — clipped decorative divider */
+.iris{
+  width:100%;height:6px;
+  background:linear-gradient(90deg,transparent,var(--accent),var(--gold),var(--accent),transparent);
+  opacity:.35;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* GitHub ribbon */
+.gh{
+  position:fixed;top:20px;right:20px;z-index:10;
+  background:rgba(11,20,50,.9);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:12px;font-weight:600;
+  color:var(--accent2);
+  text-decoration:none;
+  backdrop-filter:blur(8px);
+  transition:border-color .2s,color .2s;
+  display:flex;align-items:center;gap:7px;
+}
+.gh:hover{border-color:var(--accent);color:#fff}
+.gh svg{width:16px;height:16px;fill:currentColor}
+
+/* Mobile */
+@media(max-width:768px){
+  .page{grid-template-columns:1fr;grid-template-rows:auto 380px}
+  .left{padding:28px 20px}
+  .right{border-top:1px solid var(--border)}
+  .gh{top:12px;right:12px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<a class="gh" href="https://github.com/" target="_blank">
+  <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+  View on GitHub
+</a>
+
+<div class="page">
+
+  <!-- ── LEFT — Controls ── -->
+  <div class="left">
+    <div class="header">
+      <div class="badge">Visual Basic .NET · Windows Forms</div>
+      <h1>Irregular Solid<br/><span>Volume Calculator</span></h1>
+      <div class="subtitle">Disk / Washer Method  ·  Composite Simpson's Rule  ·  n = 1000 slices</div>
+    </div>
+
+    <div class="iris"></div>
+
+    <div>
+      <div class="field-label">Select Solid Form</div>
+      <select id="solid" onchange="onSolidChange()">
+        <option value="0">1 · Sinusoidal Paraboloid Shell</option>
+        <option value="1">2 · Damped-Wave Frustum</option>
+        <option value="2">3 · Exponential Ogive Dome</option>
+        <option value="3">4 · Hyperbolic Annular Solid</option>
+        <option value="4">5 · Polynomial Biconcave Spindle</option>
+      </select>
+    </div>
+
+    <div class="solid-info">
+      <div class="solid-desc" id="sdesc"></div>
+      <div class="solid-formula" id="sformula"></div>
+      <div class="tags" id="stags"></div>
+    </div>
+
+    <div class="param-grid">
+      <div class="param-block">
+        <div class="field-label">Length L (cm)</div>
+        <input type="number" id="pL" value="10" min="0.1" step="0.1"/>
+      </div>
+      <div class="param-block">
+        <div class="field-label">Max Radius R (cm)</div>
+        <input type="number" id="pR" value="5" min="0.1" step="0.1"/>
+      </div>
+      <div class="param-block">
+        <div class="field-label">Amplitude / Factor A</div>
+        <input type="number" id="pA" value="1" step="0.1"/>
+      </div>
+      <div class="param-block">
+        <div class="field-label">Shape Param n / B</div>
+        <input type="number" id="pN" value="3" step="0.1"/>
+      </div>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">▶  Calculate Volume</button>
+
+    <div class="result-card" id="resultCard">
+      <div class="vol-label">Computed Volume</div>
+      <div class="vol-value" id="volVal">—</div>
+      <div class="vol-unit">cubic centimetres (cm³)</div>
+      <div class="steps" id="steps"></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT — 3D Viewer ── -->
+  <div class="right" style="display:flex;flex-direction:column;">
+    <div class="viewer-header">
+      <div class="viewer-title">3D Solid of Revolution</div>
+      <div class="viewer-hint">Drag to rotate · Auto-spins</div>
+    </div>
+    <canvas id="cv3d" style="flex:1;display:block;width:100%;"></canvas>
+    <div class="solid-name-overlay" id="solidLabel"></div>
+    <div class="vol-overlay" id="volOverlay"></div>
+  </div>
+
+</div>
+
+<script>
+/* ── Starfield ─────────────────────────────────── */
+(function(){
+  const c=document.getElementById('stars'),
+        ctx=c.getContext('2d');
+  let stars=[];
+  function resize(){c.width=innerWidth;c.height=innerHeight;stars=[];for(let i=0;i<200;i++)stars.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.2+.2,a:Math.random()})}
+  function draw(){ctx.clearRect(0,0,c.width,c.height);stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(180,200,255,${s.a*.7})`;ctx.fill()})}
+  resize();draw();window.addEventListener('resize',()=>{resize();draw()});
+})();
+
+/* ── Solid catalogue ────────────────────────────── */
+const SOLIDS=[
+  {name:'Sinusoidal Paraboloid Shell',
+   desc:'A parabolic solid modulated by a sine wave, producing a ribbed shell-like surface with periodic undulations along its length.',
+   formula:'r(x) = R·(1−(x/L)²) + A·sin(N·π·x/L)',
+   tags:['Ribbed','Shell','Organic'],
+   hue:200,
+   r:(x,L,R,A,N)=>R*(1-(x/L)**2)+A*Math.sin(N*Math.PI*x/L)},
+  {name:'Damped-Wave Frustum',
+   desc:'A cone-like frustum whose radius decays with an oscillating cosine envelope — mimicking a vibrating body settling to rest.',
+   formula:'r(x) = R + (A−R)·(x/L) + N·cos(3x)·e^(−0.3x)',
+   tags:['Acoustic','Frustum','Decaying'],
+   hue:270,
+   r:(x,L,R,A,N)=>Math.max(0,R+(A-R)*(x/L)+N*Math.cos(3*x)*Math.exp(-0.3*x))},
+  {name:'Exponential Ogive Dome',
+   desc:'A dome whose profile follows an exponential ogive curve — wide base tapering smoothly to a rounded apex, common in ballistics.',
+   formula:'r(x) = R·√(1−(x/L)²)·e^(−A·x/L)',
+   tags:['Dome','Ogive','Ballistic'],
+   hue:150,
+   r:(x,L,R,A,N)=>R*Math.sqrt(Math.max(0,1-(x/L)**2))*Math.exp(-A*x/L)},
+  {name:'Hyperbolic Annular Solid',
+   desc:'A solid bounded by a hyperbolic curve — narrower at the waist and flared symmetrically at both ends.',
+   formula:'r(x) = √(R² + (x−L/2)² / A²)',
+   tags:['Hyperboloid','Ring','Flared'],
+   hue:30,
+   r:(x,L,R,A,N)=>Math.sqrt(R*R+(x-L/2)**2/(A*A))},
+  {name:'Polynomial Biconcave Spindle',
+   desc:'A lens-shaped solid following a degree-4 polynomial — concave at both ends and convex at the centre, like a red blood cell.',
+   formula:'r(x) = R·[4·(x/L)·(1−x/L)]^N',
+   tags:['Biconcave','Lens','Cell-like'],
+   hue:350,
+   r:(x,L,R,A,N)=>{const b=4*(x/L)*(1-x/L);return b>0?R*Math.pow(b,N):0}}
+];
+
+/* ── Simpson integration ─────────────────────── */
+function simpson(fn,L,R,A,N,n=1000){
+  const h=L/n;let s=0;
+  for(let i=0;i<=n;i++){
+    const x=i*h,r=fn(x,L,R,A,N),f=Math.PI*r*r;
+    const c=(i===0||i===n)?1:(i%2?4:2);
+    s+=c*f;
+  }
+  return s*h/3;
+}
+
+/* ── 3D Renderer ─────────────────────────────── */
+const cv=document.getElementById('cv3d');
+const ctx=cv.getContext('2d');
+let rotY=0.4,rotX=0.2,drag=false,mx=0,my=0,autoSpin=true;
+let lastVol=-1;
+
+cv.addEventListener('mousedown',e=>{drag=true;mx=e.clientX;my=e.clientY;autoSpin=false});
+cv.addEventListener('touchstart',e=>{drag=true;mx=e.touches[0].clientX;my=e.touches[0].clientY;autoSpin=false},{passive:true});
+window.addEventListener('mousemove',e=>{if(!drag)return;rotY+=(e.clientX-mx)*0.012;rotX+=(e.clientY-my)*0.012;mx=e.clientX;my=e.clientY;});
+window.addEventListener('touchmove',e=>{if(!drag)return;rotY+=(e.touches[0].clientX-mx)*0.012;rotX+=(e.touches[0].clientY-my)*0.012;mx=e.touches[0].clientX;my=e.touches[0].clientY;},{passive:true});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('touchend',()=>drag=false);
+
+function hsl(h,s,l){return`hsl(${h},${s}%,${l}%)`}
+
+function renderFrame(){
+  const dpr=window.devicePixelRatio||1;
+  const rect=cv.getBoundingClientRect();
+  const W=rect.width,H=rect.height;
+  if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr;}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  // Subtle grid
+  ctx.strokeStyle='rgba(30,45,107,0.4)';ctx.lineWidth=.5;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+
+  const idx=+document.getElementById('solid').value;
+  const L=+document.getElementById('pL').value||10;
+  const R=+document.getElementById('pR').value||5;
+  const A=+document.getElementById('pA').value||1;
+  const N=+document.getElementById('pN').value||3;
+  const sd=SOLIDS[idx];
+
+  rotX=Math.max(-Math.PI/2+.05,Math.min(Math.PI/2-.05,rotX));
+
+  const SLICES=64,RINGS=56;
+  const radii=[];
+  let maxR=0;
+  for(let i=0;i<=SLICES;i++){const x=i*L/SLICES;const r=Math.max(0,sd.r(x,L,R,A,N));radii.push(r);if(r>maxR)maxR=r;}
+  if(maxR<.001)maxR=1;
+
+  const sc=Math.min((W*.38)/L,(H*.38)/maxR);
+  const cx=W/2,cy=H/2;
+  const cosY=Math.cos(rotY),sinY=Math.sin(rotY);
+  const cosX=Math.cos(rotX),sinX=Math.sin(rotX);
+
+  const pts=[];const zs=[];
+  for(let i=0;i<=SLICES;i++){
+    pts.push([]);zs.push([]);
+    for(let j=0;j<=RINGS;j++){
+      const ang=j*2*Math.PI/RINGS;
+      const ax=(i*L/SLICES-L/2)*sc;
+      const ay=radii[i]*sc*Math.sin(ang);
+      const az=radii[i]*sc*Math.cos(ang);
+      const rx=ax*cosY-az*sinY;const rz=ax*sinY+az*cosY;
+      const ry=ay*cosX-rz*sinX;const rz2=ay*sinX+rz*cosX;
+      const fov=700,p=fov/(fov+rz2+300);
+      pts[i].push([cx+rx*p,cy-ry*p]);
+      zs[i].push(rz2);
+    }
+  }
+
+  // Collect and sort quads
+  const quads=[];
+  for(let i=0;i<SLICES;i++){
+    for(let j=0;j<RINGS;j++){
+      const j1=(j+1)%RINGS;
+      const depth=(zs[i][j]+zs[i+1][j]+zs[i+1][j1]+zs[i][j1])/4;
+      // Rough normal z from cross product (2D projection approximation)
+      const dx=pts[i+1][j][0]-pts[i][j][0],dy=pts[i+1][j][1]-pts[i][j][1];
+      const ex=pts[i][j1][0]-pts[i][j][0],ey=pts[i][j1][1]-pts[i][j][1];
+      const nz=dx*ey-dy*ex;
+      const bright=Math.min(1,Math.max(0.12,Math.abs(nz)/(Math.abs(nz)+300)*1.1+0.12));
+      const posAlong=i/SLICES;
+      quads.push({i,j,j1,depth,bright,posAlong});
+    }
+  }
+  quads.sort((a,b)=>b.depth-a.depth);
+
+  const H_BASE=sd.hue;
+  for(const q of quads){
+    const {i,j,j1,bright,posAlong}=q;
+    const sat=60+bright*20;
+    const lig=Math.round(8+bright*55);
+    const alpha=Math.round(160+bright*80);
+    const color=`hsla(${H_BASE+posAlong*20},${sat}%,${lig}%,${alpha/255})`;
+    ctx.beginPath();
+    ctx.moveTo(pts[i][j][0],pts[i][j][1]);
+    ctx.lineTo(pts[i+1][j][0],pts[i+1][j][1]);
+    ctx.lineTo(pts[i+1][j1][0],pts[i+1][j1][1]);
+    ctx.lineTo(pts[i][j1][0],pts[i][j1][1]);
+    ctx.closePath();
+    ctx.fillStyle=color;
+    ctx.fill();
+    if(bright>.4){ctx.strokeStyle=`rgba(255,255,255,0.04)`;ctx.lineWidth=.4;ctx.stroke();}
+  }
+
+  // Axis
+  const axL=[cx+(-L/2)*sc*cosY,cy],axR=[cx+(L/2)*sc*cosY,cy];
+  ctx.beginPath();ctx.moveTo(axL[0],axL[1]);ctx.lineTo(axR[0],axR[1]);
+  ctx.strokeStyle='rgba(96,165,250,0.25)';ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.stroke();ctx.setLineDash([]);
+
+  if(autoSpin)rotY+=.01;
+  requestAnimationFrame(renderFrame);
+}
+
+/* ── UI logic ────────────────────────────────── */
+function onSolidChange(){
+  const idx=+document.getElementById('solid').value;
+  const sd=SOLIDS[idx];
+  document.getElementById('sdesc').textContent=sd.desc;
+  document.getElementById('sformula').textContent=sd.formula;
+  document.getElementById('stags').innerHTML=sd.tags.map(t=>`<span class="tag">${t}</span>`).join('');
+  document.getElementById('solidLabel').textContent=sd.name;
+  document.getElementById('resultCard').style.display='none';
+  document.getElementById('volOverlay').textContent='';
+  lastVol=-1;
+}
+
+function calculate(){
+  const idx=+document.getElementById('solid').value;
+  const L=+document.getElementById('pL').value;
+  const R=+document.getElementById('pR').value;
+  const A=+document.getElementById('pA').value;
+  const N=+document.getElementById('pN').value;
+  if(L<=0||R<=0){alert('Length and Radius must be > 0.');return;}
+  const V=simpson(SOLIDS[idx].r,L,R,A,N);
+  lastVol=V;
+  document.getElementById('volVal').textContent=V.toFixed(2)+' cm³';
+  document.getElementById('steps').innerHTML=
+    `Method: Disk/Washer  →  V = π∫[r(x)]² dx<br>`+
+    `Rule: Composite Simpson's Rule  |  n = 1,000 slices<br>`+
+    `Δx = ${(L/1000).toFixed(5)} cm  ·  Range: x = 0 → ${L} cm<br>`+
+    `<b style="color:var(--gold)">VOLUME = ${V.toFixed(6)} cm³</b>`;
+  document.getElementById('resultCard').style.display='block';
+  document.getElementById('volOverlay').textContent=`V = ${V.toFixed(2)} cm³`;
+}
+
+onSolidChange();
+renderFrame();
+</script>
+</body>
+</html>
